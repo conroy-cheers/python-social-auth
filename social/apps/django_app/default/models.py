@@ -43,10 +43,12 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         abstract = True
 
     @classmethod
-    def get_social_auth(cls, provider, uid):
+    def get_social_auth(cls, provider, uid, **kwargs):
         try:
+            print(cls.objects.all())
             return cls.objects.select_related('user').get(provider=provider,
-                                                          uid=uid)
+                                                          uid=uid,
+                                                          **kwargs)
         except UserSocialAuth.DoesNotExist:
             return None
 

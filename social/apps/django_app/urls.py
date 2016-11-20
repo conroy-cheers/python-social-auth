@@ -18,6 +18,8 @@ urlpatterns = [
         name='begin'),
     url(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete,
         name='complete'),
+    url(r'^r/complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete_with_response,
+        name='complete-r'),
     # disconnection
     url(r'^disconnect/(?P<backend>[^/]+){0}$'.format(extra), views.disconnect,
         name='disconnect'),

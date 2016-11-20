@@ -33,7 +33,7 @@ class OAuthAuth(BaseAuth):
     SCOPE_PARAMETER_NAME = 'scope'
     DEFAULT_SCOPE = None
     SCOPE_SEPARATOR = ' '
-    REDIRECT_STATE = False
+    REDIRECT_STATE = True
     STATE_PARAMETER = False
 
     def extra_data(self, user, uid, response, details=None, *args, **kwargs):
@@ -163,6 +163,8 @@ class BaseOAuth1(OAuthAuth):
     def auth_url(self):
         """Return redirect url"""
         token = self.set_unauthorized_token()
+
+        return HttpResponseRedirect(stored + self.request.build_absolute_uri()[6:].lstrip('/').split('/', 1)[1])
         return self.oauth_authorization_request(token)
 
     def process_error(self, data):
@@ -312,7 +314,7 @@ class BaseOAuth2(OAuthAuth):
     REFRESH_TOKEN_URL = None
     REFRESH_TOKEN_METHOD = 'POST'
     RESPONSE_TYPE = 'code'
-    REDIRECT_STATE = True
+    REDIRECT_STATE = False
     STATE_PARAMETER = True
 
     def auth_params(self, state=None):
@@ -330,6 +332,19 @@ class BaseOAuth2(OAuthAuth):
     def auth_url(self):
         """Return redirect url"""
         state = self.get_or_create_state()
+
+        if self.strategy.setting('SUBDOMAIN_REDIRECTS', False):
+            # add the original domain to the session
+            if self.data.get('state'):
+                state = self.data.get('state')
+                self.strategy.session_set(self.name + '_state', state)
+            else:
+                self.strategy.session_set(state, self.data['next'])
+            if not self.strategy.request.is_base:
+                # redirect to base domain first
+                c = self.strategy.request.base_path + '/' + self.strategy.request.build_absolute_uri()[6:].lstrip('/').split('/', 1)[1] + '&state=' + state
+                return self.strategy.request.base_path + '/' + self.strategy.request.build_absolute_uri()[6:].lstrip('/').split('/', 1)[1] + '&state=' +  state
+
         params = self.auth_params(state)
         params.update(self.get_scope_argument())
         params.update(self.auth_extra_arguments())
@@ -393,8 +408,22 @@ class BaseOAuth2(OAuthAuth):
             method=self.ACCESS_TOKEN_METHOD
         )
         self.process_error(response)
+
+        if self.strategy.setting('SUBDOMAIN_REDIRECTS', False):
+            # if the destination is on a subdomain, redirect to that subdomain
+            if self.strategy.request.is_base and self.strategy.session_get('next'):
+                params = self.strategy.request_get()
+                params.update(response)
+                # build the appropriate redirect URL
+                c = self.strategy.session_get('next').split(':', 1)[0] + '://' + self.strategy.session_get('next')[6:].lstrip('/').split('/', 1)[0] + '/r' + self.strategy.request.path + '?' + urlencode(params)
+                return self.strategy.redirect(self.strategy.session_get('next').split(':', 1)[0] + '://' + self.strategy.session_get('next')[6:].lstrip('/').split('/', 1)[0] + '/r' + self.strategy.request.path + '?' + urlencode(params))
+
         return self.do_auth(response['access_token'], response=response,
                             *args, **kwargs)
+
+    @handle_http_errors
+    def auth_complete_with_response(self, *args, **kwargs):
+        return self.do_auth(self.data['access_token'], *args, **kwargs)
 
     @handle_http_errors
     def do_auth(self, access_token, *args, **kwargs):

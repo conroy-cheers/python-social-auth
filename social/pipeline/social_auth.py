@@ -17,7 +17,7 @@ def auth_allowed(backend, details, response, *args, **kwargs):
 
 def social_user(backend, uid, user=None, *args, **kwargs):
     provider = backend.name
-    social = backend.strategy.storage.user.get_social_auth(provider, uid)
+    social = backend.strategy.storage.user.get_social_auth(provider, uid, user__subdomain=kwargs.get('subdomain'))
     if social:
         if user and social.user != user:
             msg = 'This {0} account is already in use.'.format(provider)

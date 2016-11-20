@@ -4,9 +4,10 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
+from django.http import HttpResponseRedirect
 
 from social.utils import setting_name
-from social.actions import do_auth, do_complete, do_disconnect
+from social.actions import do_auth, do_complete, do_disconnect, do_complete_with_response
 from social.apps.django_app.utils import psa
 
 
@@ -19,13 +20,25 @@ def auth(request, backend):
     return do_auth(request.backend, redirect_name=REDIRECT_FIELD_NAME)
 
 
+
 @never_cache
 @csrf_exempt
 @psa('{0}:complete'.format(NAMESPACE))
 def complete(request, backend, *args, **kwargs):
     """Authentication complete view"""
+    # if request.is_base:
+    #     # stored state available
+    #     stored = request.backend.strategy.session_get('next')
+    #     return HttpResponseRedirect(stored + request.build_absolute_uri()[6:].lstrip('/').split('/', 1)[1])
     return do_complete(request.backend, _do_login, request.user,
                        redirect_name=REDIRECT_FIELD_NAME, *args, **kwargs)
+
+@never_cache
+@csrf_exempt
+@psa('{0}:complete'.format(NAMESPACE))
+def complete_with_response(request, backend, *args, **kwargs):
+    return do_complete_with_response(request.backend, _do_login, request.user,
+                                     redirect_name=REDIRECT_FIELD_NAME, *args, **kwargs)
 
 
 @never_cache

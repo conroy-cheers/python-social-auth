@@ -3,7 +3,7 @@ from uuid import uuid4
 from social.utils import slugify, module_member
 
 
-USER_FIELDS = ['username', 'email']
+USER_FIELDS = ['username', 'email', 'subdomain']
 
 
 def get_username(strategy, details, user=None, *args, **kwargs):
@@ -17,6 +17,8 @@ def get_username(strategy, details, user=None, *args, **kwargs):
         max_length = storage.user.username_max_length()
         do_slugify = strategy.setting('SLUGIFY_USERNAMES', False)
         do_clean = strategy.setting('CLEAN_USERNAMES', True)
+
+        subdomain = strategy.request.subdomain
 
         if do_clean:
             clean_func = storage.user.clean_username
@@ -49,12 +51,13 @@ def get_username(strategy, details, user=None, *args, **kwargs):
         # username is cut to avoid any field max_length.
         # The final_username may be empty and will skip the loop.
         while not final_username or \
-              storage.user.user_exists(username=final_username):
+              storage.user.user_exists(username=final_username, subdomain=subdomain):
             username = short_username + uuid4().hex[:uuid_length]
             final_username = slug_func(clean_func(username[:max_length]))
     else:
         final_username = storage.user.get_username(user)
-    return {'username': final_username}
+        subdomain = user.subdomain
+    return {'username': final_username, 'subdomain': subdomain}
 
 
 def create_user(strategy, details, user=None, *args, **kwargs):
@@ -76,7 +79,7 @@ def user_details(strategy, details, user=None, *args, **kwargs):
     """Update user details using data from provider."""
     if user:
         changed = False  # flag to track changes
-        protected = ('username', 'id', 'pk', 'email') + \
+        protected = ('username', 'id', 'pk', 'email', 'subdomain') + \
             tuple(strategy.setting('PROTECTED_USER_FIELDS', []))
 
         # Update user model attributes with the new data sent by the current

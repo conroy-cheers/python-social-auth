@@ -26,23 +26,34 @@ def do_auth(backend, redirect_name='next'):
             redirect_name,
             redirect_uri or backend.setting('LOGIN_REDIRECT_URL')
         )
+
     return backend.start()
 
 
-def do_complete(backend, login, user=None, redirect_name='next',
-                *args, **kwargs):
-    data = backend.strategy.request_data()
-
-    is_authenticated = user_is_authenticated(user)
-    user = is_authenticated and user or None
-
+def do_disconnect(backend, user, association_id=None, redirect_name='next',
+                  *args, **kwargs):
     partial = partial_pipeline_data(backend, user, *args, **kwargs)
     if partial:
         xargs, xkwargs = partial
-        user = backend.continue_pipeline(*xargs, **xkwargs)
+        if association_id and not xkwargs.get('association_id'):
+            xkwargs['association_id'] = association_id
+        response = backend.disconnect(*xargs, **xkwargs)
     else:
-        user = backend.complete(user=user, *args, **kwargs)
+        response = backend.disconnect(user=user, association_id=association_id,
+                                      *args, **kwargs)
 
+    if isinstance(response, dict):
+        response = backend.strategy.redirect(
+            backend.strategy.absolute_uri(
+                backend.strategy.request_data().get(redirect_name, '') or
+                backend.setting('DISCONNECT_REDIRECT_URL') or
+                backend.setting('LOGIN_REDIRECT_URL')
+            )
+        )
+    return response
+
+
+def finish_complete(backend, login, user, is_authenticated, data, redirect_name='next', *args, **kwargs):
     # pop redirect value before the session is trashed on login(), but after
     # the pipeline so that the pipeline can change the redirect if needed
     redirect_value = backend.strategy.session_get(redirect_name, '') or \
@@ -97,6 +108,39 @@ def do_complete(backend, login, user=None, redirect_name='next',
         url = sanitize_redirect(allowed_hosts, url) or \
               backend.setting('LOGIN_REDIRECT_URL')
     return backend.strategy.redirect(url)
+
+
+def do_complete(backend, login, user=None, redirect_name='next',
+                *args, **kwargs):
+    data = backend.strategy.request_data()
+
+    is_authenticated = user_is_authenticated(user)
+    user = is_authenticated and user or None
+
+    partial = partial_pipeline_data(backend, user, *args, **kwargs)
+    if partial:
+        xargs, xkwargs = partial
+        user = backend.continue_pipeline(*xargs, **xkwargs)
+    else:
+        user = backend.complete(user=user, *args, **kwargs)
+
+    return finish_complete(backend, login, user, is_authenticated, data, redirect_name, *args, **kwargs)
+
+
+def do_complete_with_response(backend, login, user=None, redirect_name='next', response=None, *args, **kwargs):
+    data = backend.strategy.request_data()
+
+    is_authenticated = user_is_authenticated(user)
+    user = is_authenticated and user or None
+
+    partial = partial_pipeline_data(backend, user, *args, **kwargs)
+    if partial:
+        xargs, xkwargs = partial
+        user = backend.continue_pipeline(*xargs, **xkwargs)
+    else:
+        user = backend.auth_complete_with_response(user=user, response=response, *args, **kwargs)
+
+    return finish_complete(backend, login, user, is_authenticated, data, redirect_name, *args, **kwargs)
 
 
 def do_disconnect(backend, user, association_id=None, redirect_name='next',
