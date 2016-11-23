@@ -72,7 +72,7 @@ class UserSocialAuth(AbstractUserSocialAuth):
 
     class Meta:
         """Meta data"""
-        unique_together = ('provider', 'uid')
+        unique_together = ('provider', 'uid', 'user')
         db_table = 'social_auth_usersocialauth'
 
 
