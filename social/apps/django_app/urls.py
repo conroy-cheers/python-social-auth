@@ -20,6 +20,8 @@ urlpatterns = [
         name='complete'),
     url(r'^r/complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete_with_response,
         name='complete-r'),
+    url(r'^logout/(?P<backend>[^/]+){0}$'.format(extra), views.logout, name='logout'),
+    url(r'^slo/(?P<backend>[^/]+){0}$'.format(extra), views.slo, name='slo'),
     # disconnection
     url(r'^disconnect/(?P<backend>[^/]+){0}$'.format(extra), views.disconnect,
         name='disconnect'),

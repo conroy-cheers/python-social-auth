@@ -89,6 +89,11 @@ class SAMLIdentityProvider(object):
         return self.conf['url']
 
     @property
+    def slo_url(self):
+        """Get the SLO URL for this IdP"""
+        return self.conf.get('slo_url')
+
+    @property
     def x509cert(self):
         """X.509 Public Key Certificate for this IdP"""
         return self.conf['x509cert']
@@ -97,7 +102,7 @@ class SAMLIdentityProvider(object):
     def saml_config_dict(self):
         """Get the IdP configuration dict in the format required by
         python-saml"""
-        return {
+        d = {
             'entityId': self.entity_id,
             'singleSignOnService': {
                 'url': self.sso_url,
@@ -106,6 +111,12 @@ class SAMLIdentityProvider(object):
             },
             'x509cert': self.x509cert,
         }
+        if self.slo_url:
+            d['singleLogoutService'] = {
+                'url': self.slo_url,
+                'binding': 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
+            }
+        return d
 
 
 class DummySAMLIdentityProvider(SAMLIdentityProvider):
@@ -267,6 +278,18 @@ class SAMLAuth(BaseAuth):
         # URL.
         return auth.login(return_to=idp_name)
 
+    def logout_url(self, return_to=None):
+        """Get the URL to which we must redirect in order to
+        log out the user with SLO"""
+        try:
+            idp_name = self.strategy.request_data()['idp']
+        except KeyError:
+            raise AuthMissingParameter(self, 'idp')
+        auth = self._create_saml_auth(idp=self.get_idp(idp_name))
+        name_id = self.strategy.request.session.get('samlNameId')
+        session_index = self.strategy.request.session.get('samlSessionIndex')
+        return auth.logout(return_to=return_to if return_to else idp_name, name_id=name_id, session_index=session_index)
+
     def get_user_details(self, response):
         """Get user details like full name, email, etc. from the
         response - see auth_complete"""
@@ -309,6 +332,15 @@ class SAMLAuth(BaseAuth):
         }
         kwargs.update({'response': response, 'backend': self})
         return self.strategy.authenticate(*args, **kwargs)
+
+    def auth_logout(self, redirect_name='next'):
+        print(self.logout_url())
+        return self.strategy.redirect(self.logout_url())
+
+    def auth_slo(self):
+        # log out the local user
+        self.strategy.logout()
+        return self.strategy.redirect('/')
 
     def _check_entitlements(self, idp, attributes):
         """

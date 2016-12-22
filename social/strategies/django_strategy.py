@@ -2,7 +2,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.db.models import Model
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, logout
 from django.shortcuts import redirect
 from django.template import TemplateDoesNotExist, RequestContext, loader
 from django.utils.encoding import force_text
@@ -94,6 +94,9 @@ class DjangoStrategy(BaseStrategy):
         kwargs['storage'] = self.storage
         kwargs['backend'] = backend
         return authenticate(*args, **kwargs)
+
+    def logout(self):
+        return logout(self.request)
 
     def session_get(self, name, default=None):
         return self.session.get(name, default)

@@ -4,10 +4,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
-from django.http import HttpResponseRedirect
 
 from social.utils import setting_name
-from social.actions import do_auth, do_complete, do_disconnect, do_complete_with_response
+from social.actions import do_auth, do_complete, do_disconnect, do_complete_with_response, do_logout, do_slo
 from social.apps.django_app.utils import psa
 
 
@@ -39,6 +38,20 @@ def complete(request, backend, *args, **kwargs):
 def complete_with_response(request, backend, *args, **kwargs):
     return do_complete_with_response(request.backend, _do_login, request.user,
                                      redirect_name=REDIRECT_FIELD_NAME, *args, **kwargs)
+
+
+@never_cache
+@login_required
+@psa('{0}:complete'.format(NAMESPACE))
+def logout(request, backend):
+    return do_logout(request.backend)
+
+
+@never_cache
+@login_required
+@psa('{0}:complete'.format(NAMESPACE))
+def slo(request, backend):
+    return do_slo(request.backend)
 
 
 @never_cache

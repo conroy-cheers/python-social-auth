@@ -53,6 +53,14 @@ def do_disconnect(backend, user, association_id=None, redirect_name='next',
     return response
 
 
+def do_logout(backend, redirect_name='next'):
+    return backend.auth_logout(redirect_name)
+
+
+def do_slo(backend):
+    return backend.auth_slo()
+
+
 def finish_complete(backend, login, user, is_authenticated, data, redirect_name='next', *args, **kwargs):
     # pop redirect value before the session is trashed on login(), but after
     # the pipeline so that the pipeline can change the redirect if needed
@@ -141,26 +149,3 @@ def do_complete_with_response(backend, login, user=None, redirect_name='next', r
         user = backend.auth_complete_with_response(user=user, response=response, *args, **kwargs)
 
     return finish_complete(backend, login, user, is_authenticated, data, redirect_name, *args, **kwargs)
-
-
-def do_disconnect(backend, user, association_id=None, redirect_name='next',
-                  *args, **kwargs):
-    partial = partial_pipeline_data(backend, user, *args, **kwargs)
-    if partial:
-        xargs, xkwargs = partial
-        if association_id and not xkwargs.get('association_id'):
-            xkwargs['association_id'] = association_id
-        response = backend.disconnect(*xargs, **xkwargs)
-    else:
-        response = backend.disconnect(user=user, association_id=association_id,
-                                      *args, **kwargs)
-
-    if isinstance(response, dict):
-        response = backend.strategy.redirect(
-            backend.strategy.absolute_uri(
-                backend.strategy.request_data().get(redirect_name, '') or
-                backend.setting('DISCONNECT_REDIRECT_URL') or
-                backend.setting('LOGIN_REDIRECT_URL')
-            )
-        )
-    return response
