@@ -315,7 +315,6 @@ class SAMLAuth(BaseAuth):
         idp = self.get_idp(idp_name)
         auth = self._create_saml_auth(idp)
         auth.process_response()
-        print(self.strategy.request_data())
         errors = auth.get_errors()
         if errors or not auth.is_authenticated():
             reason = auth.get_last_error_reason()
